@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QuizIA — Révise smarter</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+const pdfjsLib = null;
+
 <style>
 :root {
   --bg: #0d0d14;
@@ -703,8 +705,8 @@ select option { background:var(--surface2); }
 </div>
 
 <script>
-pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-if(typeof pdfjsLib==='undefined'){console.warn('PDF.js non chargé');}
+pdfjsLib === null;
+
 
 // ── GAMIFICATION STATE ──
 let xp = parseInt(localStorage.getItem('quizia_xp')||'0');
@@ -789,23 +791,22 @@ async function handlePdf(event) {
   const file = event.target.files[0];
   if(!file) return;
   document.getElementById('pdfName').textContent = file.name;
-  document.getElementById('pdfPages').textContent = 'Extraction en cours...';
+  document.getElementById('pdfPages').textContent = 'Lecture en cours...';
   document.getElementById('pdfLoaded').style.display = 'flex';
   const reader = new FileReader();
-  reader.onload = async(e) => {
-    try {
-      const pdf = await pdfjsLib.getDocument({data:e.target.result}).promise;
-      let txt = '';
-      for(let i=1;i<=pdf.numPages;i++) {
-        const pg = await pdf.getPage(i);
-        const ct = await pg.getTextContent();
-        txt += ct.items.map(it=>it.str).join(' ') + '\n';
-      }
-      pdfText = txt;
-      document.getElementById('pdfPages').textContent = `${pdf.numPages} page(s) · ${txt.length} caractères`;
-    } catch(e) {
-      document.getElementById('pdfPages').textContent = '❌ Erreur de lecture';
+  reader.onload = (e) => {
+    const arr = new Uint8Array(e.target.result);
+    let txt = '';
+    for(let i=0;i<arr.length;i++) {
+      const c = arr[i];
+      if(c >= 32 && c < 127) txt += String.fromCharCode(c);
+      else if(c === 10 || c === 13) txt += ' ';
     }
+    txt = txt.replace(/\s+/g,' ').replace(/[^\x20-\x7E\u00C0-\u024F ]/g,'').trim();
+    pdfText = txt;
+    document.getElementById('pdfPages').textContent = txt.length > 200
+      ? `${txt.length} caractères extraits`
+      : '⚠️ Peu de texte extrait — essaie de coller le texte directement';
   };
   reader.readAsArrayBuffer(file);
 }
