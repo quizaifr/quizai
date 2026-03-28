@@ -692,16 +692,7 @@
   <!-- INPUT SECTION -->
   <div id="inputSection">
 
-    <!-- API KEY -->
-    <div class="api-setup" id="apiSetup">
-      <h4>🔑 Clé API requise (une seule fois)</h4>
-      <p>QuizIA utilise l'IA Claude pour générer tes QCM. Tu as besoin d'une clé API gratuite sur <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → "Get API Keys".</p>
-      <div class="api-input-row">
-        <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." />
-        <button class="btn-save-key" onclick="saveApiKey()">Sauvegarder</button>
-      </div>
-      <p class="key-saved" id="keySaved">✅ Clé sauvegardée dans le navigateur !</p>
-    </div>
+
 
     <div class="card">
       <div class="card-title">Colle ton cours ou uploade un PDF</div>
@@ -821,31 +812,7 @@ let questions = [];
 let answers = {};
 let score = 0;
 let answered = 0;
-let apiKey = localStorage.getItem('quizia_api_key') || '';
 
-// ── INIT ──
-window.onload = () => {
-  if (apiKey) {
-    document.getElementById('apiSetup').style.display = 'none';
-  } else {
-    document.getElementById('apiKeyInput').value = '';
-  }
-};
-
-// ── API KEY ──
-function saveApiKey() {
-  const key = document.getElementById('apiKeyInput').value.trim();
-  if (!key.startsWith('sk-ant')) {
-    alert('La clé doit commencer par sk-ant-...');
-    return;
-  }
-  apiKey = key;
-  localStorage.setItem('quizia_api_key', key);
-  document.getElementById('keySaved').style.display = 'block';
-  setTimeout(() => {
-    document.getElementById('apiSetup').style.display = 'none';
-  }, 1200);
-}
 
 // ── TABS ──
 function switchTab(tab) {
@@ -907,13 +874,7 @@ async function generateQuiz() {
   const errorEl = document.getElementById('errorMsg');
   errorEl.classList.remove('visible');
 
-  if (!apiKey) {
-    errorEl.textContent = '⚠️ Entre ta clé API en haut de la page pour continuer.';
-    errorEl.classList.add('visible');
-    return;
-  }
-
-  if (!courseContent || courseContent.length < 100) {
+if (!courseContent || courseContent.length < 100) {
     errorEl.textContent = '⚠️ Ton cours est trop court. Colle au moins quelques paragraphes !';
     errorEl.classList.add('visible');
     return;
@@ -968,13 +929,10 @@ Règles :
 - Explication concise et pédagogique`;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://quizia-api.thomas-vandenbussche17.workers.dev', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
