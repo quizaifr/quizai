@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuizIA — Génère ton QCM</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root {
+    --bg: #07080f;
+    --surface: #0f1018;
+    --surface2: #161722;
+    --accent: #7effd4;
+    --accent2: #a78bfa;
+    --danger: #f87171;
+    --text: #eeeef5;
+    --muted: #5a5a72;
+    --border: rgba(255,255,255,0.06);
+    --radius: 18px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* grain */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* glow bg */
+  .bg-glow {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.08;
+  }
+  .bg-glow-1 { width: 700px; height: 700px; background: var(--accent); top: -200px; left: -300px; }
+  .bg-glow-2 { width: 500px; height: 500px; background: var(--accent2); bottom: -100px; right: -200px; }
+
+  /* ── LAYOUT ── */
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 48px;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: -0.03em;
+  }
+  .logo em { color: var(--accent); font-style: normal; }
+
+  .badge-free {
+    background: rgba(126,255,212,0.08);
+    border: 1px solid rgba(126,255,212,0.2);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 5px 14px;
+    border-radius: 100px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── STEP INDICATOR ── */
+  .steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 40px;
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--muted);
+    transition: color 0.3s;
+  }
+
+  .step.active { color: var(--text); }
+  .step.done { color: var(--accent); }
+
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    transition: all 0.3s;
+    flex-shrink: 0;
+  }
+
+  .step.active .step-num {
+    border-color: var(--accent);
+    background: rgba(126,255,212,0.1);
+    color: var(--accent);
+  }
+
+  .step.done .step-num {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: #07080f;
+  }
+
+  .step-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+    margin: 0 12px;
+  }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    margin-bottom: 20px;
+  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 6px;
+  }
+
+  .card-sub {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-bottom: 24px;
+  }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 6px;
+    background: var(--surface2);
+    border-radius: 12px;
+    padding: 5px;
+    margin-bottom: 20px;
+    width: fit-content;
+  }
+
+  .tab {
+    padding: 8px 20px;
+    border-radius: 9px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.2s;
+    border: none;
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .tab.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  /* ── TEXTAREA ── */
+  textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    padding: 18px;
+    resize: vertical;
+    min-height: 200px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  textarea:focus { border-color: rgba(126,255,212,0.3); }
+  textarea::placeholder { color: var(--muted); }
+
+  /* ── DROP ZONE ── */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 14px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: rgba(126,255,212,0.4);
+    background: rgba(126,255,212,0.03);
+  }
+
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .drop-icon { font-size: 2.5rem; margin-bottom: 12px; }
+
+  .drop-zone h3 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 6px;
+  }
+
+  .drop-zone p { color: var(--muted); font-size: 0.83rem; }
+
+  .pdf-loaded {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(126,255,212,0.06);
+    border: 1px solid rgba(126,255,212,0.2);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-top: 16px;
+  }
+
+  .pdf-icon { font-size: 1.8rem; }
+  .pdf-name { font-weight: 500; font-size: 0.9rem; }
+  .pdf-pages { color: var(--muted); font-size: 0.8rem; }
+
+  /* ── OPTIONS ── */
+  .options-row {
+    display: flex;
+    gap: 16px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+
+  .option-group { flex: 1; min-width: 140px; }
+
+  .option-group label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 11px 16px;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235a5a72' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+  }
+
+  /* ── BUTTON ── */
+  .btn-generate {
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent), #5eead4);
+    color: #07080f;
+    border: none;
+    padding: 16px;
+    border-radius: 14px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 24px;
+    transition: opacity 0.2s, transform 0.2s;
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .btn-generate:hover:not(:disabled) { opacity: 0.88; transform: translateY(-2px); }
+  .btn-generate:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* ── LOADING ── */
+  .loading-state {
+    display: none;
+    text-align: center;
+    padding: 60px 20px;
+  }
+
+  .loading-state.visible { display: block; }
+
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 20px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+  }
+
+  .loading-sub { color: var(--muted); font-size: 0.85rem; }
+
+  /* ── QUIZ RESULTS ── */
+  .quiz-section { display: none; }
+  .quiz-section.visible { display: block; }
+
+  .quiz-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    flex-wrap: gap;
+    gap: 12px;
+  }
+
+  .quiz-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.3rem;
+  }
+
+  .score-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 8px 18px;
+    border-radius: 100px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .score-badge span { color: var(--accent); }
+
+  /* progress bar */
+  .progress-wrap {
+    background: var(--surface2);
+    border-radius: 100px;
+    height: 4px;
+    margin-bottom: 32px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 100px;
+    transition: width 0.5s ease;
+    width: 0%;
+  }
+
+  /* question card */
+  .q-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    margin-bottom: 16px;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .q-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .q-num-badge {
+    background: rgba(126,255,212,0.1);
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 100px;
+    letter-spacing: 0.06em;
+  }
+
+  .q-text {
+    font-weight: 500;
+    font-size: 1rem;
+    line-height: 1.5;
+    margin-bottom: 18px;
+  }
+
+  .q-options { display: flex; flex-direction: column; gap: 9px; }
+
+  .q-option {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.9rem;
+    color: var(--muted);
+    background: var(--surface2);
+  }
+
+  .q-option:hover:not(.locked) {
+    border-color: rgba(126,255,212,0.3);
+    color: var(--text);
+    background: rgba(126,255,212,0.04);
+  }
+
+  .q-option.selected-correct {
+    border-color: var(--accent);
+    background: rgba(126,255,212,0.08);
+    color: var(--text);
+  }
+
+  .q-option.selected-wrong {
+    border-color: var(--danger);
+    background: rgba(248,113,113,0.08);
+    color: var(--danger);
+  }
+
+  .q-option.show-correct {
+    border-color: rgba(126,255,212,0.3);
+    color: var(--accent);
+  }
+
+  .q-option.locked { cursor: default; }
+
+  .opt-letter {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    background: rgba(255,255,255,0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 800;
+    flex-shrink: 0;
+    font-family: 'Syne', sans-serif;
+  }
+
+  .q-explanation {
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: rgba(126,255,212,0.05);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 10px 10px 0;
+    font-size: 0.85rem;
+    color: var(--muted);
+    display: none;
+  }
+
+  .q-explanation.visible { display: block; }
+
+  /* ── RESULTS SUMMARY ── */
+  .results-summary {
+    display: none;
+    text-align: center;
+    padding: 48px 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-top: 20px;
+  }
+
+  .results-summary.visible { display: block; }
+
+  .results-emoji { font-size: 3.5rem; margin-bottom: 16px; }
+
+  .results-score {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 3rem;
+    letter-spacing: -0.03em;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .results-label { color: var(--muted); font-size: 0.9rem; margin-bottom: 32px; }
+
+  .btn-retry {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 13px 32px;
+    border-radius: 100px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    margin: 0 6px;
+    transition: all 0.2s;
+  }
+
+  .btn-retry:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-new {
+    background: var(--accent);
+    border: none;
+    color: #07080f;
+    padding: 13px 32px;
+    border-radius: 100px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    margin: 0 6px;
+    transition: opacity 0.2s;
+  }
+
+  .btn-new:hover { opacity: 0.85; }
+
+  /* ── ERROR ── */
+  .error-msg {
+    display: none;
+    background: rgba(248,113,113,0.08);
+    border: 1px solid rgba(248,113,113,0.25);
+    color: var(--danger);
+    padding: 14px 18px;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    margin-top: 16px;
+  }
+
+  .error-msg.visible { display: block; }
+
+  /* ── API KEY SETUP ── */
+  .api-setup {
+    background: rgba(167,139,250,0.06);
+    border: 1px solid rgba(167,139,250,0.2);
+    border-radius: 14px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+
+  .api-setup h4 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--accent2);
+    margin-bottom: 6px;
+  }
+
+  .api-setup p {
+    color: var(--muted);
+    font-size: 0.82rem;
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+
+  .api-setup p a { color: var(--accent2); text-decoration: none; }
+  .api-setup p a:hover { text-decoration: underline; }
+
+  .api-input-row { display: flex; gap: 10px; }
+
+  .api-setup input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    outline: none;
+  }
+
+  .api-setup input:focus { border-color: rgba(167,139,250,0.4); }
+
+  .btn-save-key {
+    background: var(--accent2);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.82rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.2s;
+  }
+
+  .btn-save-key:hover { opacity: 0.85; }
+
+  .key-saved {
+    color: var(--accent);
+    font-size: 0.8rem;
+    margin-top: 8px;
+    display: none;
+  }
+
+  @media (max-width: 600px) {
+    .card { padding: 20px; }
+    .options-row { flex-direction: column; }
+    .quiz-header { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-glow bg-glow-1"></div>
+<div class="bg-glow bg-glow-2"></div>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">Quiz<em>IA</em></div>
+    <div class="badge-free">✦ GRATUIT</div>
+  </header>
+
+  <!-- STEPS -->
+  <div class="steps">
+    <div class="step active" id="step1">
+      <div class="step-num">1</div>
+      <span>Ton cours</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" id="step2">
+      <div class="step-num">2</div>
+      <span>Génération</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" id="step3">
+      <div class="step-num">3</div>
+      <span>Quiz !</span>
+    </div>
+  </div>
+
+  <!-- INPUT SECTION -->
+  <div id="inputSection">
+
+    <!-- API KEY -->
+    <div class="api-setup" id="apiSetup">
+      <h4>🔑 Clé API requise (une seule fois)</h4>
+      <p>QuizIA utilise l'IA Claude pour générer tes QCM. Tu as besoin d'une clé API gratuite sur <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → "Get API Keys".</p>
+      <div class="api-input-row">
+        <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." />
+        <button class="btn-save-key" onclick="saveApiKey()">Sauvegarder</button>
+      </div>
+      <p class="key-saved" id="keySaved">✅ Clé sauvegardée dans le navigateur !</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Colle ton cours ou uploade un PDF</div>
+      <div class="card-sub">QuizIA va analyser le contenu et générer des questions pertinentes</div>
+
+      <!-- TABS -->
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('text')">📝 Texte</button>
+        <button class="tab" onclick="switchTab('pdf')">📄 PDF</button>
+      </div>
+
+      <!-- TEXT TAB -->
+      <div id="textTab">
+        <textarea id="courseText" placeholder="Colle ici ton cours, tes notes, un chapitre de manuel...&#10;&#10;Exemple : La mitose est un processus de division cellulaire qui produit deux cellules filles génétiquement identiques à la cellule mère..."></textarea>
+        <p style="color:var(--muted);font-size:0.78rem;margin-top:8px">💡 Plus ton cours est long et détaillé, meilleures seront les questions</p>
+      </div>
+
+      <!-- PDF TAB -->
+      <div id="pdfTab" style="display:none">
+        <div class="drop-zone" id="dropZone">
+          <input type="file" accept=".pdf" onchange="handlePdfUpload(event)" />
+          <div class="drop-icon">📄</div>
+          <h3>Glisse ton PDF ici</h3>
+          <p>ou clique pour choisir un fichier · PDF uniquement</p>
+        </div>
+        <div class="pdf-loaded" id="pdfLoaded" style="display:none">
+          <div class="pdf-icon">📄</div>
+          <div>
+            <div class="pdf-name" id="pdfName">cours.pdf</div>
+            <div class="pdf-pages" id="pdfPages">0 pages extraites</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPTIONS -->
+      <div class="options-row">
+        <div class="option-group">
+          <label>Nombre de questions</label>
+          <select id="nbQuestions">
+            <option value="5">5 questions</option>
+            <option value="10" selected>10 questions</option>
+            <option value="15">15 questions</option>
+            <option value="20">20 questions</option>
+          </select>
+        </div>
+        <div class="option-group">
+          <label>Difficulté</label>
+          <select id="difficulty">
+            <option value="facile">Facile</option>
+            <option value="moyen" selected>Moyen</option>
+            <option value="difficile">Difficile</option>
+          </select>
+        </div>
+        <div class="option-group">
+          <label>Matière</label>
+          <select id="subject">
+            <option value="générale">Générale</option>
+            <option value="mathématiques">Maths</option>
+            <option value="physique-chimie">Physique-Chimie</option>
+            <option value="SVT">SVT</option>
+            <option value="histoire-géographie">Histoire-Géo</option>
+            <option value="philosophie">Philosophie</option>
+            <option value="français">Français</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="error-msg" id="errorMsg"></div>
+
+      <button class="btn-generate" id="generateBtn" onclick="generateQuiz()">
+        <span>⚡</span> Générer mon QCM
+      </button>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div class="loading-state" id="loadingState">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">Analyse du cours...</div>
+    <div class="loading-sub">L'IA génère tes questions, ça prend ~10 secondes</div>
+  </div>
+
+  <!-- QUIZ SECTION -->
+  <div class="quiz-section" id="quizSection">
+    <div class="quiz-header">
+      <div class="quiz-title">Ton QCM 🎯</div>
+      <div class="score-badge">Score : <span id="scoreDisplay">0</span> / <span id="totalDisplay">0</span></div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <div id="questionsContainer"></div>
+
+    <div class="results-summary" id="resultsSummary">
+      <div class="results-emoji" id="resultsEmoji">🎉</div>
+      <div class="results-score" id="finalScore">0/0</div>
+      <div class="results-label" id="resultsLabel">Résultat final</div>
+      <div>
+        <button class="btn-retry" onclick="retryQuiz()">🔄 Réessayer</button>
+        <button class="btn-new" onclick="newQuiz()">✨ Nouveau cours</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── PDFJSLIB SETUP ──
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── STATE ──
+let currentTab = 'text';
+let pdfText = '';
+let questions = [];
+let answers = {};
+let score = 0;
+let answered = 0;
+let apiKey = localStorage.getItem('quizia_api_key') || '';
+
+// ── INIT ──
+window.onload = () => {
+  if (apiKey) {
+    document.getElementById('apiSetup').style.display = 'none';
+  } else {
+    document.getElementById('apiKeyInput').value = '';
+  }
+};
+
+// ── API KEY ──
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key.startsWith('sk-ant')) {
+    alert('La clé doit commencer par sk-ant-...');
+    return;
+  }
+  apiKey = key;
+  localStorage.setItem('quizia_api_key', key);
+  document.getElementById('keySaved').style.display = 'block';
+  setTimeout(() => {
+    document.getElementById('apiSetup').style.display = 'none';
+  }, 1200);
+}
+
+// ── TABS ──
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'text') || (i === 1 && tab === 'pdf'));
+  });
+  document.getElementById('textTab').style.display = tab === 'text' ? 'block' : 'none';
+  document.getElementById('pdfTab').style.display = tab === 'pdf' ? 'block' : 'none';
+}
+
+// ── PDF UPLOAD ──
+async function handlePdfUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  document.getElementById('pdfName').textContent = file.name;
+  document.getElementById('pdfPages').textContent = 'Extraction en cours...';
+  document.getElementById('pdfLoaded').style.display = 'flex';
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const pdf = await pdfjsLib.getDocument({ data: e.target.result }).promise;
+      let fullText = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        fullText += content.items.map(item => item.str).join(' ') + '\n';
+      }
+      pdfText = fullText;
+      document.getElementById('pdfPages').textContent = `${pdf.numPages} page(s) · ${fullText.length} caractères extraits`;
+    } catch (err) {
+      document.getElementById('pdfPages').textContent = '❌ Erreur lors de la lecture';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// Drag & drop
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dz.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type === 'application/pdf') {
+    handlePdfUpload({ target: { files: [file] } });
+  }
+});
+
+// ── GENERATE QUIZ ──
+async function generateQuiz() {
+  const courseContent = currentTab === 'text'
+    ? document.getElementById('courseText').value.trim()
+    : pdfText.trim();
+
+  const errorEl = document.getElementById('errorMsg');
+  errorEl.classList.remove('visible');
+
+  if (!apiKey) {
+    errorEl.textContent = '⚠️ Entre ta clé API en haut de la page pour continuer.';
+    errorEl.classList.add('visible');
+    return;
+  }
+
+  if (!courseContent || courseContent.length < 100) {
+    errorEl.textContent = '⚠️ Ton cours est trop court. Colle au moins quelques paragraphes !';
+    errorEl.classList.add('visible');
+    return;
+  }
+
+  const nbQ = document.getElementById('nbQuestions').value;
+  const diff = document.getElementById('difficulty').value;
+  const subj = document.getElementById('subject').value;
+
+  // UI: go to loading
+  setStep(2);
+  document.getElementById('inputSection').style.display = 'none';
+  document.getElementById('loadingState').classList.add('visible');
+
+  const loadingTexts = [
+    'Analyse du cours...',
+    'Détection des concepts clés...',
+    'Génération des questions...',
+    'Vérification des réponses...'
+  ];
+  let li = 0;
+  const loadingInterval = setInterval(() => {
+    li = (li + 1) % loadingTexts.length;
+    document.getElementById('loadingText').textContent = loadingTexts[li];
+  }, 2500);
+
+  const prompt = `Tu es un professeur expert qui crée des QCM pour des lycéens français.
+
+Voici un cours de ${subj} :
+---
+${courseContent.slice(0, 4000)}
+---
+
+Génère exactement ${nbQ} questions QCM de niveau ${diff} basées UNIQUEMENT sur ce cours.
+
+Réponds UNIQUEMENT en JSON valide, sans aucun texte avant ou après, dans ce format exact :
+{
+  "questions": [
+    {
+      "question": "Texte de la question ?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct": 0,
+      "explanation": "Courte explication de la bonne réponse (1-2 phrases)"
+    }
+  ]
+}
+
+Règles :
+- "correct" est l'index (0,1,2 ou 3) de la bonne réponse dans "options"
+- Questions variées et pertinentes par rapport au cours
+- Distracteurs crédibles mais clairement incorrects
+- Explication concise et pédagogique`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    clearInterval(loadingInterval);
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error?.message || `Erreur API ${response.status}`);
+    }
+
+    const data = await response.json();
+    const raw = data.content[0].text.trim();
+
+    // Parse JSON
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Format de réponse invalide');
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    if (!parsed.questions || !Array.isArray(parsed.questions)) throw new Error('Structure JSON invalide');
+
+    questions = parsed.questions;
+    answers = {};
+    score = 0;
+    answered = 0;
+
+    document.getElementById('loadingState').classList.remove('visible');
+    renderQuiz();
+
+  } catch (err) {
+    clearInterval(loadingInterval);
+    document.getElementById('loadingState').classList.remove('visible');
+    document.getElementById('inputSection').style.display = 'block';
+    setStep(1);
+    errorEl.textContent = `❌ Erreur : ${err.message}`;
+    errorEl.classList.add('visible');
+  }
+}
+
+// ── RENDER QUIZ ──
+function renderQuiz() {
+  setStep(3);
+  const container = document.getElementById('questionsContainer');
+  container.innerHTML = '';
+
+  document.getElementById('totalDisplay').textContent = questions.length;
+  document.getElementById('scoreDisplay').textContent = '0';
+  document.getElementById('progressBar').style.width = '0%';
+  document.getElementById('resultsSummary').classList.remove('visible');
+
+  questions.forEach((q, qi) => {
+    const letters = ['A', 'B', 'C', 'D'];
+    const optionsHTML = q.options.map((opt, oi) => `
+      <div class="q-option" id="opt-${qi}-${oi}" onclick="selectAnswer(${qi}, ${oi})">
+        <span class="opt-letter">${letters[oi]}</span>
+        ${opt}
+      </div>
+    `).join('');
+
+    const card = document.createElement('div');
+    card.className = 'q-card';
+    card.style.animationDelay = `${qi * 0.06}s`;
+    card.innerHTML = `
+      <div class="q-meta">
+        <span class="q-num-badge">Q${qi + 1}</span>
+      </div>
+      <div class="q-text">${q.question}</div>
+      <div class="q-options">${optionsHTML}</div>
+      <div class="q-explanation" id="expl-${qi}">💡 ${q.explanation}</div>
+    `;
+    container.appendChild(card);
+  });
+
+  document.getElementById('quizSection').classList.add('visible');
+}
+
+// ── SELECT ANSWER ──
+function selectAnswer(qi, oi) {
+  if (answers[qi] !== undefined) return; // already answered
+  answers[qi] = oi;
+  answered++;
+
+  const correct = questions[qi].correct;
+  const isCorrect = oi === correct;
+
+  // Lock all options for this question
+  for (let i = 0; i < questions[qi].options.length; i++) {
+    const el = document.getElementById(`opt-${qi}-${i}`);
+    el.classList.add('locked');
+    if (i === oi && isCorrect) el.classList.add('selected-correct');
+    if (i === oi && !isCorrect) el.classList.add('selected-wrong');
+    if (i === correct && !isCorrect) el.classList.add('show-correct');
+  }
+
+  // Show explanation
+  document.getElementById(`expl-${qi}`).classList.add('visible');
+
+  if (isCorrect) score++;
+  document.getElementById('scoreDisplay').textContent = score;
+
+  // Update progress
+  const pct = (answered / questions.length) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+
+  // All answered → show summary
+  if (answered === questions.length) {
+    setTimeout(showSummary, 800);
+  }
+}
+
+// ── SUMMARY ──
+function showSummary() {
+  const pct = Math.round((score / questions.length) * 100);
+  let emoji = '😅';
+  let label = 'Continue à réviser !';
+  if (pct >= 80) { emoji = '🏆'; label = 'Excellent travail !'; }
+  else if (pct >= 60) { emoji = '😊'; label = 'Bien joué, continue !'; }
+  else if (pct >= 40) { emoji = '📚'; label = 'Relis bien ton cours !'; }
+
+  document.getElementById('resultsEmoji').textContent = emoji;
+  document.getElementById('finalScore').textContent = `${score}/${questions.length}`;
+  document.getElementById('resultsLabel').textContent = `${pct}% · ${label}`;
+  document.getElementById('resultsSummary').classList.add('visible');
+  document.getElementById('resultsSummary').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ── RETRY / NEW ──
+function retryQuiz() {
+  answers = {};
+  score = 0;
+  answered = 0;
+  renderQuiz();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function newQuiz() {
+  document.getElementById('quizSection').classList.remove('visible');
+  document.getElementById('inputSection').style.display = 'block';
+  document.getElementById('courseText').value = '';
+  pdfText = '';
+  document.getElementById('pdfLoaded').style.display = 'none';
+  setStep(1);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── STEPS ──
+function setStep(n) {
+  [1, 2, 3].forEach(i => {
+    const el = document.getElementById(`step${i}`);
+    el.classList.remove('active', 'done');
+    if (i < n) el.classList.add('done');
+    if (i === n) el.classList.add('active');
+  });
+}
+</script>
+</body>
+</html>
