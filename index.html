@@ -844,14 +844,22 @@ async function generateQuiz() {
     document.getElementById('loadingText').textContent = loadMsgs[li];
   }, 2200);
 
-  const prompt = `Tu es un professeur expert qui crée des QCM pour des lycéens français.
+  const prompt = `Tu es un professeur expert qui crée des QCM pour des lycéens français en ${subj}.
 
-Voici un cours de ${subj} :
+Voici un cours :
 ---
 ${content.slice(0,4000)}
 ---
 
-Génère exactement ${nbQ} questions QCM de niveau ${diff} basées UNIQUEMENT sur ce cours.
+Génère exactement ${nbQ} questions QCM de niveau ${diff}.
+
+RÈGLES IMPORTANTES :
+- Concentre-toi sur les CONCEPTS CLÉS, FORMULES, MÉTHODES et DÉFINITIONS du cours
+- IGNORE complètement l'histoire, l'étymologie, les anecdotes et le contexte historique
+- Répartis tes questions sur TOUT le cours, pas seulement le début
+- Varie les types de questions : définitions, calculs, applications, comparaisons
+- En maths/sciences : privilégie les questions sur les formules et méthodes de calcul
+- Distracteurs crédibles mais clairement incorrects pour quelqu'un qui connaît le cours
 
 Réponds UNIQUEMENT en JSON valide, sans texte avant ou après :
 {
@@ -863,13 +871,7 @@ Réponds UNIQUEMENT en JSON valide, sans texte avant ou après :
       "explanation": "Explication courte de la bonne réponse."
     }
   ]
-}
-
-Règles :
-- "correct" = index (0,1,2 ou 3) de la bonne réponse
-- Questions variées et pertinentes
-- Distracteurs crédibles mais incorrects
-- Explications pédagogiques`;
+}`;
 
   try {
     const res = await fetch('https://quizia-api.thomas-vandenbussche17.workers.dev', {
