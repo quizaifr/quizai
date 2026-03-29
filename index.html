@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QuizIA — Révise smarter</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['$','$'],['\\(','\\)']]},svg:{fontCache:'global'}};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root {
   --bg: #0d0d14;
@@ -363,7 +369,7 @@ select option{background:var(--surface2);}
 
   <!-- HEADER -->
   <header>
-    <div class="logo">Quiz<em>IA</em></div>
+    <div class="logo" onclick="newQuiz()" style="cursor:pointer">Quiz<em>IA</em></div>
     <div class="header-right">
       <div class="streak-badge">🔥 <span id="streakCount">0</span> jours</div>
       <div class="xp-badge">⚡ <span id="xpCount">0</span> XP</div>
@@ -407,6 +413,7 @@ select option{background:var(--surface2);}
       <div class="tabs">
         <button class="tab active" onclick="switchTab('text')">📝 Texte</button>
         <button class="tab" onclick="switchTab('pdf')">📄 PDF</button>
+        <button class="tab" onclick="switchTab('photo')">📸 Photo</button>
       </div>
 
       <div id="textTab">
@@ -427,6 +434,23 @@ select option{background:var(--surface2);}
             <div class="pdf-pages" id="pdfPages">Extraction en cours...</div>
           </div>
         </div>
+      </div>
+
+      <div id="photoTab" style="display:none">
+        <div class="drop-zone" id="photoZone">
+          <input type="file" accept="image/*" capture="environment" onchange="handlePhoto(event)"/>
+          <div class="drop-icon">📸</div>
+          <h3>Prends une photo de ton cours</h3>
+          <p>ou importe une image · JPG, PNG, WEBP</p>
+        </div>
+        <div class="pdf-loaded" id="photoLoaded" style="display:none">
+          <span style="font-size:1.8rem">📸</span>
+          <div>
+            <div class="pdf-name" id="photoName">photo.jpg</div>
+            <div class="pdf-pages" id="photoStatus">Prêt à analyser</div>
+          </div>
+        </div>
+        <img id="photoPreview" style="display:none;width:100%;border-radius:12px;margin-top:12px;max-height:200px;object-fit:cover;border:1px solid var(--border)"/>
       </div>
 
       <div class="options-grid" id="qcmOptions">
@@ -487,7 +511,7 @@ select option{background:var(--surface2);}
 
     <!-- FICHE -->
     <div class="fiche-section visible" id="ficheSection">
-      <button class="btn-print" onclick="window.print()">🖨️ Imprimer la fiche</button>
+      <button class="btn-print" onclick="exportPDF()">📥 Télécharger la fiche en PDF</button>
       <div id="ficheContent"></div>
     </div>
 
@@ -590,32 +614,53 @@ function setMode(mode) {
 function switchTab(tab) {
   currentTab=tab;
   document.querySelectorAll('.tab').forEach((t,i)=>{
-    t.classList.toggle('active',(i===0&&tab==='text')||(i===1&&tab==='pdf'));
+    t.classList.toggle('active',(i===0&&tab==='text')||(i===1&&tab==='pdf')||(i===2&&tab==='photo'));
   });
   document.getElementById('textTab').style.display=tab==='text'?'block':'none';
   document.getElementById('pdfTab').style.display=tab==='pdf'?'block':'none';
+  document.getElementById('photoTab').style.display=tab==='photo'?'block':'none';
 }
 
-// ── PDF ──
+// ── PDF — correctement configuré ──
+const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
 async function handlePdf(event) {
   const file=event.target.files[0];if(!file)return;
   document.getElementById('pdfName').textContent=file.name;
-  document.getElementById('pdfPages').textContent='Lecture en cours...';
+  document.getElementById('pdfPages').textContent='Extraction en cours...';
   document.getElementById('pdfLoaded').style.display='flex';
-  const reader=new FileReader();
-  reader.onload=(e)=>{
-    const arr=new Uint8Array(e.target.result);
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_WORKER;
+    const arrayBuffer=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:arrayBuffer}).promise;
     let txt='';
-    for(let i=0;i<arr.length;i++){
-      const c=arr[i];
-      if(c>=32&&c<127)txt+=String.fromCharCode(c);
-      else if(c===10||c===13)txt+=' ';
+    for(let i=1;i<=pdf.numPages;i++){
+      const page=await pdf.getPage(i);
+      const content=await page.getTextContent();
+      txt+=content.items.map(it=>it.str).join(' ')+'\n';
     }
-    txt=txt.replace(/\s+/g,' ').trim();
-    pdfText=txt;
-    document.getElementById('pdfPages').textContent=txt.length>200?`${txt.length} caractères extraits`:'⚠️ Peu de texte — essaie de coller le texte';
-  };
-  reader.readAsArrayBuffer(file);
+    pdfText=txt.trim();
+    document.getElementById('pdfPages').textContent=
+      pdfText.length>200?`${pdf.numPages} page(s) · ${pdfText.length} caractères extraits ✅`
+      :'⚠️ Peu de texte — essaie de coller le texte directement';
+  } catch(e) {
+    document.getElementById('pdfPages').textContent='❌ Erreur de lecture PDF';
+    console.error(e);
+  }
+}
+
+// ── PHOTO — OCR via Gemini Vision ──
+let photoFile=null;
+
+async function handlePhoto(event) {
+  const file=event.target.files[0];if(!file)return;
+  photoFile=file;
+  document.getElementById('photoName').textContent=file.name;
+  document.getElementById('photoStatus').textContent='Photo chargée ✅ — sera analysée par l\'IA';
+  document.getElementById('photoLoaded').style.display='flex';
+  const url=URL.createObjectURL(file);
+  const preview=document.getElementById('photoPreview');
+  preview.src=url;preview.style.display='block';
 }
 
 const dz=document.getElementById('dropZone');
@@ -629,21 +674,35 @@ dz.addEventListener('drop',e=>{
 
 // ── GENERATE ──
 async function generate() {
-  const content=currentTab==='text'
-    ?document.getElementById('courseText').value.trim()
-    :pdfText.trim();
-
   const errEl=document.getElementById('errorMsg');
   errEl.classList.remove('visible');
 
-  if(!content||content.length<100){
-    errEl.textContent='⚠️ Ton cours est trop court ! Colle au moins quelques paragraphes.';
-    errEl.classList.add('visible');return;
-  }
-
-  const nbQ=document.getElementById('nbQ').value;
+  const nbQ=parseInt(document.getElementById('nbQ').value);
   const diff=document.getElementById('diff').value;
   const subj=document.getElementById('subj').value;
+
+  // Build messages array based on tab
+  let messages=[];
+
+  if(currentTab==='photo') {
+    if(!photoFile){errEl.textContent='⚠️ Prends d\'abord une photo !';errEl.classList.add('visible');return;}
+    const b64=await new Promise(res=>{const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.readAsDataURL(photoFile);});
+    const mt=photoFile.type||'image/jpeg';
+    const promptText=buildPrompt(subj,nbQ,diff,'[image du cours ci-jointe]');
+    messages=[{role:'user',content:[
+      {type:'image_url',image_url:{url:`data:${mt};base64,${b64}`}},
+      {type:'text',text:promptText}
+    ]}];
+  } else {
+    const content=currentTab==='text'
+      ?document.getElementById('courseText').value.trim()
+      :pdfText.trim();
+    if(!content||content.length<100){
+      errEl.textContent='⚠️ Ton cours est trop court ! Colle au moins quelques paragraphes.';
+      errEl.classList.add('visible');return;
+    }
+    messages=[{role:'user',content:buildPrompt(subj,nbQ,diff,content)}];
+  }
 
   document.getElementById('inputSection').style.display='none';
   document.getElementById('loadingState').classList.add('visible');
@@ -651,103 +710,14 @@ async function generate() {
   const loadMsgs=currentMode==='fiche'
     ?['Lecture du cours...','Extraction des concepts clés...','Rédaction de la fiche...','Finalisation...']
     :['Lecture du cours...','Extraction des concepts clés...','Génération de la fiche...','Création des questions...'];
-
   let li=0;
-  const intv=setInterval(()=>{
-    li=(li+1)%loadMsgs.length;
-    document.getElementById('loadingText').textContent=loadMsgs[li];
-  },2000);
+  const intv=setInterval(()=>{li=(li+1)%loadMsgs.length;document.getElementById('loadingText').textContent=loadMsgs[li];},2000);
 
   try {
-    // Build prompt based on mode
-    let prompt='';
-
-    if(currentMode==='fiche'||currentMode==='both') {
-      const fichePrompt=`Tu es un professeur expert en neurosciences de l'apprentissage qui vise le 20/20. Crée une fiche de révision optimisée pour le cerveau.
-
-Cours de ${subj} :
----
-${content.slice(0,5000)}
----
-
-PRINCIPES ABSOLUS (neurosciences) :
-- 1 idée = 1 ligne = max 7 mots → lisible en 30 secondes
-- Chaque définition = mot → définition ultra simple (ex: Antigène = molécule étrangère reconnue)
-- Schéma mental : A → B → C → résultat (pas de phrases longues)
-- Mécanismes précis : pas juste QUOI mais COMMENT (ex: destruction par apoptose)
-- Garde seulement ce qui peut tomber à l'exam — élimine le reste
-- Exemples concrets ultra courts (1 mot suffit : ex: Auschwitz, Hiroshima)
-- En histoire : dates + acteurs clés obligatoires
-- En sciences : mécanismes + formules obligatoires
-
-Réponds UNIQUEMENT en JSON valide :
-{
-  "fiche": {
-    "schemaGlobal": ["Étape 1 → résultat", "Étape 2 → résultat", "Étape 3 → résultat"],
-    "resume": "Max 30 mots. Ultra condensé. Acteurs + dates + enjeux.",
-    "motsCles": ["mot1", "mot2", "mot3", "mot4", "mot5", "mot6"],
-    "dates": [{"date": "Date", "evenement": "Max 5 mots"}],
-    "acteursClés": [{"nom": "Nom", "role": "Max 5 mots"}],
-    "definitions": [{"terme": "Terme", "definition": "= définition ultra simple max 10 mots"}],
-    "formules": ["Formule exacte ou règle en max 10 mots"],
-    "mecanismes": ["Mécanisme précis : A → B → C (comment ça marche vraiment)"],
-    "liensLogiques": ["Cause → Conséquence (max 8 mots)"],
-    "exemplesconcrets": ["Exemple = 1-3 mots max"],
-    "synthese": "Phase 1 → Phase 2 → Phase 3 (une ligne)",
-    "pointsEssentiels": ["Point clé = max 7 mots, ultra percutant"],
-    "flashcards": [
-      {"question": "Question courte ?", "reponse": "Réponse en max 10 mots"}
-    ],
-    "bilan": "1 phrase bilan percutante, max 20 mots",
-    "questionsExamen": ["Question type exam avec type : (def/analyse/calcul/dates)"]
-  }${currentMode==='both'?`,
-  "questions": [
-    {
-      "question": "Question ?",
-      "options": ["A", "B", "C", "D"],
-      "correct": 0,
-      "explanation": "Explication courte."
-    }
-  ]`:''}
-}`;
-      prompt=fichePrompt;
-    } else {
-      prompt=`Tu es un professeur expert qui crée des QCM pour des lycéens français en ${subj}.
-
-Cours :
----
-${content.slice(0,4000)}
----
-
-Génère exactement ${nbQ} questions QCM de niveau ${diff}.
-
-RÈGLES :
-- Concentre-toi sur les CONCEPTS CLÉS, FORMULES, MÉTHODES
-- IGNORE l'histoire et les anecdotes
-- Répartis sur TOUT le cours
-- Distracteurs crédibles mais incorrects
-
-Réponds UNIQUEMENT en JSON valide :
-{
-  "questions": [
-    {
-      "question": "Question ?",
-      "options": ["A", "B", "C", "D"],
-      "correct": 0,
-      "explanation": "Explication courte."
-    }
-  ]
-}`;
-    }
-
     const res=await fetch('https://quizia-api.thomas-vandenbussche17.workers.dev',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'gemini-2.5-flash-lite',
-        max_tokens:6000,
-        messages:[{role:'user',content:prompt}]
-      })
+      body:JSON.stringify({model:'gemini-2.5-flash-lite',max_tokens:8000,messages})
     });
 
     clearInterval(intv);
@@ -763,44 +733,83 @@ Réponds UNIQUEMENT en JSON valide :
 
     document.getElementById('loadingState').classList.remove('visible');
     document.getElementById('resultsSection').style.display='block';
-
     addXP(10);
 
-    // Show fiche
-    if(parsed.fiche) {
-      renderFiche(parsed.fiche);
-      document.getElementById('tabFiche').style.display='flex';
-    } else {
-      document.getElementById('tabFiche').style.display='none';
-    }
+    if(parsed.fiche){renderFiche(parsed.fiche);document.getElementById('tabFiche').style.display='flex';}
+    else{document.getElementById('tabFiche').style.display='none';}
 
-    // Show QCM
-    if(parsed.questions&&parsed.questions.length>0) {
-      questions=parsed.questions;
-      answers={};score=0;answered=0;
-      renderQuiz();
-      document.getElementById('tabQcm').style.display='flex';
-    } else {
-      document.getElementById('tabQcm').style.display='none';
-    }
+    if(parsed.questions&&parsed.questions.length>0){
+      questions=parsed.questions;answers={};score=0;answered=0;
+      renderQuiz();document.getElementById('tabQcm').style.display='flex';
+    } else{document.getElementById('tabQcm').style.display='none';}
 
-    // Set initial tab
-    if(currentMode==='qcm') {
-      showResultsTab('qcm');
-    } else {
-      showResultsTab('fiche');
-    }
-
-    // Update results nav visibility
+    if(currentMode==='qcm')showResultsTab('qcm');
+    else showResultsTab('fiche');
     document.getElementById('resultsNav').style.display=currentMode==='both'?'flex':'none';
+
+    // Render math
+    if(window.MathJax)MathJax.typesetPromise();
 
   } catch(err) {
     clearInterval(intv);
     document.getElementById('loadingState').classList.remove('visible');
     document.getElementById('inputSection').style.display='block';
-    errEl.textContent=`❌ ${err.message}`;
-    errEl.classList.add('visible');
+    errEl.textContent=`❌ ${err.message}`;errEl.classList.add('visible');
   }
+}
+
+function buildPrompt(subj,nbQ,diff,content) {
+  const qcmPart=currentMode!=='fiche'?`,
+  "questions": [
+    {"question":"?","options":["A","B","C","D"],"correct":0,"explanation":"courte"}
+  ]`:'';
+  const nbQReal=currentMode==='both'?nbQ:0;
+
+  if(currentMode==='fiche') {
+    return buildFichePrompt(subj,content,false);
+  } else if(currentMode==='both') {
+    return buildFichePrompt(subj,content,true,nbQ,diff);
+  } else {
+    return `Tu es prof expert en ${subj}. Cours :
+---
+${typeof content==='string'?content.slice(0,4000):content}
+---
+Génère exactement ${nbQ} questions QCM niveau ${diff}. IGNORE histoire/anecdotes. Répartis sur TOUT le cours.
+JSON uniquement :
+{"questions":[{"question":"?","options":["A","B","C","D"],"correct":0,"explanation":"courte"}]}`;
+  }
+}
+
+function buildFichePrompt(subj,content,withQcm,nbQ=0,diff='moyen') {
+  const qcmPart=withQcm?`,
+  "questions": [${Array(nbQ).fill('{"question":"?","options":["A","B","C","D"],"correct":0,"explanation":"courte"}').join(',')}]`:'';
+  return `Tu es prof expert en neurosciences de l'apprentissage. Cours de ${subj} :
+---
+${typeof content==='string'?content.slice(0,5000):content}
+---
+RÈGLES : 1 idée=1 ligne=max 7 mots. Définitions ultra simples. Mécanismes précis (COMMENT pas juste QUOI). Formules mathématiques en LaTeX avec $ (ex: $\\sqrt{x}$, $\\frac{a}{b}$). IGNORE anecdotes. Couvre TOUT le cours.
+${withQcm?`Génère aussi EXACTEMENT ${nbQ} questions QCM niveau ${diff}.`:''}
+JSON uniquement :
+{
+  "fiche":{
+    "schemaGlobal":["A → B → résultat"],
+    "resume":"max 30 mots",
+    "motsCles":["mot1","mot2"],
+    "dates":[{"date":"date","evenement":"max 5 mots"}],
+    "acteursClés":[{"nom":"Nom","role":"max 5 mots"}],
+    "definitions":[{"terme":"Terme","definition":"= def ultra simple max 10 mots"}],
+    "formules":["formule LaTeX ou règle"],
+    "mecanismes":["A → B → C"],
+    "liensLogiques":["Cause → Conséquence"],
+    "exemplesconcrets":["1-3 mots"],
+    "synthese":"Phase1 → Phase2 → Phase3",
+    "pointsEssentiels":["max 7 mots"],
+    "flashcards":[{"question":"?","reponse":"max 10 mots"}],
+    "bilan":"max 20 mots",
+    "questionsExamen":["question (type)"]
+  }${withQcm?`,
+  "questions":[{"question":"?","options":["A","B","C","D"],"correct":0,"explanation":"courte"}]`:''}
+}`;
 }
 
 // ── RENDER FICHE ──
@@ -868,6 +877,81 @@ function renderFiche(fiche) {
 }
 
 function toggleFlashcard(el){el.classList.toggle('open');}
+
+// ── EXPORT PDF ──
+async function exportPDF() {
+  const btn=document.querySelector('.btn-print');
+  btn.textContent='⏳ Génération...';btn.disabled=true;
+  try {
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    const W=210,margin=15,contentW=W-margin*2;
+    let y=margin;
+
+    // Header avec logo
+    doc.setFillColor(13,13,20);
+    doc.rect(0,0,W,28,'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(20);
+    doc.setTextColor(167,139,250);
+    doc.text('Quiz',margin,18);
+    doc.setTextColor(126,255,212);
+    doc.text('IA',margin+22,18);
+    doc.setFontSize(9);
+    doc.setTextColor(180,180,200);
+    doc.text('Fiche de révision — quizaifr.github.io/quizai',margin+40,18);
+    y=36;
+
+    // Contenu de la fiche
+    const cards=document.querySelectorAll('#ficheContent .fiche-card');
+    doc.setFont('helvetica','normal');
+
+    cards.forEach(card=>{
+      const blocks=card.querySelectorAll('.fiche-block');
+      blocks.forEach(block=>{
+        const title=block.querySelector('.fiche-block-title');
+        if(title){
+          if(y>270){doc.addPage();y=margin;}
+          doc.setFont('helvetica','bold');
+          doc.setFontSize(10);
+          doc.setTextColor(80,80,120);
+          doc.text(title.innerText.replace(/[^\x00-\x7F]/g,'').trim(),margin,y);
+          y+=6;
+          doc.setDrawColor(200,200,220);
+          doc.line(margin,y,W-margin,y);
+          y+=4;
+        }
+
+        // Textes
+        const items=block.querySelectorAll('p,div:not(.fiche-block-title),.point-item,.def-item,.date-item,.lien-item,.formule-item,.meca-item,.exemple-item,.prob-question,.flashcard-front,.keyword-item,.acteur-item,.schema-step,.synthese-text,.bilan-text,.resume-text');
+        items.forEach(item=>{
+          const txt=item.innerText.replace(/[^\x00-\x7F]/g,'').trim();
+          if(!txt||txt.length<2)return;
+          if(y>275){doc.addPage();y=margin;}
+          doc.setFont('helvetica','normal');
+          doc.setFontSize(9);
+          doc.setTextColor(40,40,40);
+          const lines=doc.splitTextToSize('• '+txt,contentW);
+          lines.forEach(line=>{
+            if(y>275){doc.addPage();y=margin;}
+            doc.text(line,margin,y);
+            y+=5;
+          });
+        });
+        y+=3;
+      });
+      y+=4;
+    });
+
+    // Footer
+    doc.setFontSize(7);
+    doc.setTextColor(150,150,170);
+    doc.text('Généré par QuizIA — quizaifr.github.io/quizai',margin,290);
+
+    doc.save('fiche-quizia.pdf');
+  } catch(e){alert('Erreur PDF : '+e.message);}
+  btn.textContent='📥 Télécharger la fiche en PDF';btn.disabled=false;
+}
 
 // ── RESULTS TABS ──
 function showResultsTab(tab) {
@@ -948,8 +1032,10 @@ function newQuiz(){
   document.getElementById('resultsSection').style.display='none';
   document.getElementById('inputSection').style.display='block';
   document.getElementById('courseText').value='';
-  pdfText='';
+  pdfText='';photoFile=null;
   document.getElementById('pdfLoaded').style.display='none';
+  document.getElementById('photoLoaded').style.display='none';
+  document.getElementById('photoPreview').style.display='none';
   window.scrollTo({top:0,behavior:'smooth'});
 }
 </script>
