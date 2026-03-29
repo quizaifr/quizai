@@ -242,6 +242,21 @@ select option{background:var(--surface2);}
 .point-item{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;font-size:0.88rem;line-height:1.5;color:rgba(255,255,255,0.8);}
 .point-dot{width:6px;height:6px;border-radius:50%;background:#fb923c;flex-shrink:0;margin-top:6px;}
 
+/* Acteurs clés — rose */
+.block-acteurs .fiche-block-title{color:#f472b6;}
+.acteur-item{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;padding:8px 12px;background:rgba(244,114,182,0.06);border-radius:10px;}
+.acteur-nom{font-family:'Nunito',sans-serif;font-weight:800;font-size:0.88rem;color:#f472b6;flex-shrink:0;min-width:120px;}
+.acteur-role{font-size:0.85rem;color:rgba(255,255,255,0.75);}
+
+/* Exemples concrets — amber */
+.block-exemples .fiche-block-title{color:#fbbf24;}
+.exemple-item{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;font-size:0.87rem;color:rgba(255,255,255,0.8);padding:8px 12px;background:rgba(251,191,36,0.06);border-radius:10px;}
+.exemple-dot{color:#fbbf24;font-size:1rem;flex-shrink:0;}
+
+/* Synthèse des phases — violet clair */
+.block-synthese .fiche-block-title{color:#c4b5fd;}
+.synthese-text{font-family:'Nunito',sans-serif;font-weight:700;font-size:0.95rem;color:#c4b5fd;text-align:center;padding:12px;background:rgba(196,181,253,0.08);border-radius:10px;border:1px solid rgba(196,181,253,0.15);}
+
 /* Dates — orange */
 .block-dates .fiche-block-title{color:#f97316;}
 .date-item{display:flex;align-items:flex-start;gap:12px;margin-bottom:8px;padding:8px 12px;background:rgba(249,115,22,0.06);border-radius:10px;}
@@ -625,38 +640,44 @@ async function generate() {
     let prompt='';
 
     if(currentMode==='fiche'||currentMode==='both') {
-      const fichePrompt=`Tu es un professeur expert qui vise le 20/20. Analyse ce cours de ${subj} et crée une fiche de révision parfaite.
+      const fichePrompt=`Tu es un professeur exigeant qui vise le 20/20. Analyse ce cours de ${subj} et crée une fiche de révision niveau excellence.
 
 Cours :
 ---
 ${content.slice(0,5000)}
 ---
 
-RÈGLES IMPORTANTES :
-- Concentre-toi sur les CONCEPTS CLÉS, FORMULES, MÉTHODES et DATES
-- IGNORE l'étymologie et les détails anecdotiques sans valeur exam
-- Couvre TOUT le cours équitablement
-- Chaque mot doit servir — sois précis et percutant
-- En histoire/géo : les dates sont INDISPENSABLES
-- En maths/sciences : les formules et méthodes sont prioritaires
-- Montre les liens logiques cause → conséquence quand c'est pertinent
+RÈGLES ABSOLUES :
+- Maximum d'infos, minimum de mots — chaque mot doit servir
+- Noms des acteurs clés OBLIGATOIRES (personnages historiques, scientifiques, philosophes...)
+- Dates précises OBLIGATOIRES en histoire
+- Formules et méthodes OBLIGATOIRES en maths/sciences
+- Liens cause → conséquence pour montrer la compréhension
+- Exemples concrets illustrant les concepts abstraits
+- Couvre TOUT le cours équitablement, pas seulement le début
+- IGNORE les détails anecdotiques sans valeur exam
 
 Réponds UNIQUEMENT en JSON valide :
 {
   "fiche": {
-    "resume": "1-2 phrases ULTRA condensées qui capturent l'essentiel du cours (max 40 mots)",
+    "resume": "1-2 phrases ULTRA condensées, max 40 mots, avec les acteurs et dates clés",
     "motsCles": ["mot1", "mot2", "mot3", "mot4", "mot5", "mot6"],
     "dates": [
-      {"date": "Date ou période", "evenement": "Ce qui s'est passé"}
+      {"date": "Date précise", "evenement": "Événement avec acteur clé si pertinent"}
+    ],
+    "acteursClés": [
+      {"nom": "Nom Prénom", "role": "Rôle précis et concis"}
     ],
     "definitions": [
-      {"terme": "Terme important", "definition": "Définition claire et précise avec détails experts"}
+      {"terme": "Terme", "definition": "Définition scolaire précise, réutilisable en contrôle"}
     ],
-    "formules": ["Formule ou règle à retenir"],
-    "liensLogiques": ["Cause → Conséquence (ex: Crise financière → Convocation des États Généraux)"],
-    "pointsEssentiels": ["Point clé précis avec chiffres/noms/détails experts"],
-    "bilan": "1 phrase bilan qui montre la portée et l'importance du sujet",
-    "questionsExamen": ["Question probable à l'examen ?"]
+    "formules": ["Formule ou règle exacte à retenir"],
+    "liensLogiques": ["Cause précise → Conséquence précise"],
+    "exemplesconcrets": ["Exemple concret qui illustre un concept clé"],
+    "synthese": "Mini synthèse des phases ou étapes clés en 1 ligne (ex: Phase 1 → Phase 2 → Phase 3)",
+    "pointsEssentiels": ["Point clé ultra précis avec noms/chiffres/détails experts"],
+    "bilan": "1 phrase bilan percutante sur la portée et l'importance du sujet",
+    "questionsExamen": ["Question précise probable à l'examen avec le type attendu (définition/analyse/calcul)"]
   }${currentMode==='both'?`,
   "questions": [
     {
@@ -812,6 +833,34 @@ function renderFiche(fiche) {
     html+=`<div class="fiche-card"><div class="fiche-block block-formules">
       <div class="fiche-block-title">📐 Formules & règles à retenir</div>
       ${fiche.formules.map(f=>`<div class="formule-item">${f}</div>`).join('')}
+    </div></div>`;
+  }
+
+  // Acteurs clés
+  if(fiche.acteursClés&&fiche.acteursClés.length>0) {
+    html+=`<div class="fiche-card"><div class="fiche-block block-acteurs">
+      <div class="fiche-block-title">👤 Acteurs clés</div>
+      ${fiche.acteursClés.map(a=>`
+        <div class="acteur-item">
+          <span class="acteur-nom">${a.nom}</span>
+          <span class="acteur-role">${a.role}</span>
+        </div>`).join('')}
+    </div></div>`;
+  }
+
+  // Synthèse des phases
+  if(fiche.synthese) {
+    html+=`<div class="fiche-card"><div class="fiche-block block-synthese">
+      <div class="fiche-block-title">⚡ Synthèse des phases</div>
+      <div class="synthese-text">${fiche.synthese}</div>
+    </div></div>`;
+  }
+
+  // Exemples concrets
+  if(fiche.exemplesconcrets&&fiche.exemplesconcrets.length>0) {
+    html+=`<div class="fiche-card"><div class="fiche-block block-exemples">
+      <div class="fiche-block-title">🔍 Exemples concrets</div>
+      ${fiche.exemplesconcrets.map(e=>`<div class="exemple-item"><span class="exemple-dot">→</span>${e}</div>`).join('')}
     </div></div>`;
   }
 
