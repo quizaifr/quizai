@@ -242,6 +242,29 @@ select option{background:var(--surface2);}
 .point-item{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;font-size:0.88rem;line-height:1.5;color:rgba(255,255,255,0.8);}
 .point-dot{width:6px;height:6px;border-radius:50%;background:#fb923c;flex-shrink:0;margin-top:6px;}
 
+/* Schema global — dégradé spécial */
+.block-schema{background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(126,255,212,0.08));border:1px solid rgba(167,139,250,0.25);border-radius:14px;padding:18px;}
+.block-schema .fiche-block-title{color:#fff;font-size:0.9rem;}
+.schema-flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:4px;}
+.schema-step{background:rgba(167,139,250,0.15);border:1px solid rgba(167,139,250,0.3);border-radius:8px;padding:5px 12px;font-family:'Nunito',sans-serif;font-weight:700;font-size:0.82rem;color:var(--purple);}
+.schema-arrow{color:var(--green);font-weight:800;font-size:1rem;}
+
+/* Mécanismes — vert électrique */
+.block-mecanismes .fiche-block-title{color:#4ade80;}
+.meca-item{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;padding:10px 14px;background:rgba(74,222,128,0.05);border:1px solid rgba(74,222,128,0.12);border-radius:10px;font-size:0.87rem;color:rgba(255,255,255,0.85);font-family:'Nunito',sans-serif;font-weight:600;}
+.meca-dot{color:#4ade80;flex-shrink:0;}
+
+/* Flashcards */
+.block-flashcards .fiche-block-title{color:#e879f9;}
+.flashcards-grid{display:flex;flex-direction:column;gap:8px;}
+.flashcard{border-radius:12px;border:1px solid rgba(232,121,249,0.2);overflow:hidden;cursor:pointer;}
+.flashcard-front{background:rgba(232,121,249,0.08);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;}
+.flashcard-q{font-family:'Nunito',sans-serif;font-weight:700;font-size:0.88rem;color:#e879f9;}
+.flashcard-toggle{color:rgba(232,121,249,0.6);font-size:0.8rem;font-weight:600;}
+.flashcard-back{background:rgba(255,255,255,0.03);padding:10px 16px;display:none;font-size:0.85rem;color:rgba(255,255,255,0.8);border-top:1px solid rgba(232,121,249,0.15);}
+.flashcard.open .flashcard-back{display:block;}
+.flashcard.open .flashcard-toggle{color:#e879f9;}
+
 /* Acteurs clés — rose */
 .block-acteurs .fiche-block-title{color:#f472b6;}
 .acteur-item{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;padding:8px 12px;background:rgba(244,114,182,0.06);border-radius:10px;}
@@ -640,44 +663,43 @@ async function generate() {
     let prompt='';
 
     if(currentMode==='fiche'||currentMode==='both') {
-      const fichePrompt=`Tu es un professeur exigeant qui vise le 20/20. Analyse ce cours de ${subj} et crée une fiche de révision niveau excellence.
+      const fichePrompt=`Tu es un professeur expert en neurosciences de l'apprentissage qui vise le 20/20. Crée une fiche de révision optimisée pour le cerveau.
 
-Cours :
+Cours de ${subj} :
 ---
 ${content.slice(0,5000)}
 ---
 
-RÈGLES ABSOLUES :
-- Maximum d'infos, minimum de mots — chaque mot doit servir
-- Noms des acteurs clés OBLIGATOIRES (personnages historiques, scientifiques, philosophes...)
-- Dates précises OBLIGATOIRES en histoire
-- Formules et méthodes OBLIGATOIRES en maths/sciences
-- Liens cause → conséquence pour montrer la compréhension
-- Exemples concrets illustrant les concepts abstraits
-- Couvre TOUT le cours équitablement, pas seulement le début
-- IGNORE les détails anecdotiques sans valeur exam
+PRINCIPES ABSOLUS (neurosciences) :
+- 1 idée = 1 ligne = max 7 mots → lisible en 30 secondes
+- Chaque définition = mot → définition ultra simple (ex: Antigène = molécule étrangère reconnue)
+- Schéma mental : A → B → C → résultat (pas de phrases longues)
+- Mécanismes précis : pas juste QUOI mais COMMENT (ex: destruction par apoptose)
+- Garde seulement ce qui peut tomber à l'exam — élimine le reste
+- Exemples concrets ultra courts (1 mot suffit : ex: Auschwitz, Hiroshima)
+- En histoire : dates + acteurs clés obligatoires
+- En sciences : mécanismes + formules obligatoires
 
 Réponds UNIQUEMENT en JSON valide :
 {
   "fiche": {
-    "resume": "1-2 phrases ULTRA condensées, max 40 mots, avec les acteurs et dates clés",
+    "schemaGlobal": ["Étape 1 → résultat", "Étape 2 → résultat", "Étape 3 → résultat"],
+    "resume": "Max 30 mots. Ultra condensé. Acteurs + dates + enjeux.",
     "motsCles": ["mot1", "mot2", "mot3", "mot4", "mot5", "mot6"],
-    "dates": [
-      {"date": "Date précise", "evenement": "Événement avec acteur clé si pertinent"}
+    "dates": [{"date": "Date", "evenement": "Max 5 mots"}],
+    "acteursClés": [{"nom": "Nom", "role": "Max 5 mots"}],
+    "definitions": [{"terme": "Terme", "definition": "= définition ultra simple max 10 mots"}],
+    "formules": ["Formule exacte ou règle en max 10 mots"],
+    "mecanismes": ["Mécanisme précis : A → B → C (comment ça marche vraiment)"],
+    "liensLogiques": ["Cause → Conséquence (max 8 mots)"],
+    "exemplesconcrets": ["Exemple = 1-3 mots max"],
+    "synthese": "Phase 1 → Phase 2 → Phase 3 (une ligne)",
+    "pointsEssentiels": ["Point clé = max 7 mots, ultra percutant"],
+    "flashcards": [
+      {"question": "Question courte ?", "reponse": "Réponse en max 10 mots"}
     ],
-    "acteursClés": [
-      {"nom": "Nom Prénom", "role": "Rôle précis et concis"}
-    ],
-    "definitions": [
-      {"terme": "Terme", "definition": "Définition scolaire précise, réutilisable en contrôle"}
-    ],
-    "formules": ["Formule ou règle exacte à retenir"],
-    "liensLogiques": ["Cause précise → Conséquence précise"],
-    "exemplesconcrets": ["Exemple concret qui illustre un concept clé"],
-    "synthese": "Mini synthèse des phases ou étapes clés en 1 ligne (ex: Phase 1 → Phase 2 → Phase 3)",
-    "pointsEssentiels": ["Point clé ultra précis avec noms/chiffres/détails experts"],
-    "bilan": "1 phrase bilan percutante sur la portée et l'importance du sujet",
-    "questionsExamen": ["Question précise probable à l'examen avec le type attendu (définition/analyse/calcul)"]
+    "bilan": "1 phrase bilan percutante, max 20 mots",
+    "questionsExamen": ["Question type exam avec type : (def/analyse/calcul/dates)"]
   }${currentMode==='both'?`,
   "questions": [
     {
@@ -784,120 +806,68 @@ Réponds UNIQUEMENT en JSON valide :
 // ── RENDER FICHE ──
 function renderFiche(fiche) {
   const c=document.getElementById('ficheContent');
-  let html='<div class="fiche-card">';
+  let html='';
 
-  // Résumé
-  if(fiche.resume) {
-    html+=`<div class="fiche-block block-resume">
-      <div class="fiche-block-title">📌 Résumé express</div>
-      <p class="resume-text">${fiche.resume}</p>
-    </div>`;
+  // Schéma global EN PREMIER
+  if(fiche.schemaGlobal&&fiche.schemaGlobal.length>0) {
+    const steps=fiche.schemaGlobal.map(s=>{
+      const parts=s.split('→').map(p=>p.trim());
+      return '<div class="schema-flow">'+parts.map((p,j)=>
+        `<span class="schema-step">${p}</span>${j<parts.length-1?'<span class="schema-arrow">→</span>':''}`
+      ).join('')+'</div>';
+    }).join('');
+    html+=`<div class="fiche-card"><div class="fiche-block block-schema">
+      <div class="fiche-block-title">🧠 Schéma global — lis ça en 10 secondes</div>
+      ${steps}
+    </div></div>`;
   }
 
-  // Mots-clés
-  if(fiche.motsCles&&fiche.motsCles.length>0) {
-    html+=`<div class="fiche-block block-mots" style="margin-top:16px">
-      <div class="fiche-block-title">🔑 Mots-clés</div>
-      <div class="keyword-grid">${fiche.motsCles.map(m=>`<span class="keyword-item">${m}</span>`).join('')}</div>
-    </div>`;
-  }
-
+  // Résumé + mots-clés
+  html+='<div class="fiche-card">';
+  if(fiche.resume){html+=`<div class="fiche-block block-resume"><div class="fiche-block-title">📌 Résumé express</div><p class="resume-text">${fiche.resume}</p></div>`;}
+  if(fiche.motsCles&&fiche.motsCles.length>0){html+=`<div class="fiche-block block-mots" style="margin-top:16px"><div class="fiche-block-title">🔑 Mots-clés</div><div class="keyword-grid">${fiche.motsCles.map(m=>`<span class="keyword-item">${m}</span>`).join('')}</div></div>`;}
   html+='</div>';
 
   // Dates
-  if(fiche.dates&&fiche.dates.length>0) {
-    html+=`<div class="fiche-card"><div class="fiche-block block-dates">
-      <div class="fiche-block-title">📅 Dates clés</div>
-      ${fiche.dates.map(d=>`
-        <div class="date-item">
-          <span class="date-pill">${d.date}</span>
-          <span class="date-event">${d.evenement}</span>
-        </div>`).join('')}
-    </div></div>`;
-  }
-
-  // Définitions
-  if(fiche.definitions&&fiche.definitions.length>0) {
-    html+=`<div class="fiche-card"><div class="fiche-block block-defs">
-      <div class="fiche-block-title">📖 Définitions clés</div>
-      ${fiche.definitions.map(d=>`
-        <div class="def-item">
-          <div class="def-term">${d.terme}</div>
-          <div class="def-desc">${d.definition}</div>
-        </div>`).join('')}
-    </div></div>`;
-  }
-
-  // Formules
-  if(fiche.formules&&fiche.formules.length>0) {
-    html+=`<div class="fiche-card"><div class="fiche-block block-formules">
-      <div class="fiche-block-title">📐 Formules & règles à retenir</div>
-      ${fiche.formules.map(f=>`<div class="formule-item">${f}</div>`).join('')}
-    </div></div>`;
-  }
+  if(fiche.dates&&fiche.dates.length>0){html+=`<div class="fiche-card"><div class="fiche-block block-dates"><div class="fiche-block-title">📅 Dates clés</div>${fiche.dates.map(d=>`<div class="date-item"><span class="date-pill">${d.date}</span><span class="date-event">${d.evenement}</span></div>`).join('')}</div></div>`;}
 
   // Acteurs clés
-  if(fiche.acteursClés&&fiche.acteursClés.length>0) {
-    html+=`<div class="fiche-card"><div class="fiche-block block-acteurs">
-      <div class="fiche-block-title">👤 Acteurs clés</div>
-      ${fiche.acteursClés.map(a=>`
-        <div class="acteur-item">
-          <span class="acteur-nom">${a.nom}</span>
-          <span class="acteur-role">${a.role}</span>
-        </div>`).join('')}
-    </div></div>`;
-  }
+  if(fiche.acteursClés&&fiche.acteursClés.length>0){html+=`<div class="fiche-card"><div class="fiche-block block-acteurs"><div class="fiche-block-title">👤 Acteurs clés</div>${fiche.acteursClés.map(a=>`<div class="acteur-item"><span class="acteur-nom">${a.nom}</span><span class="acteur-role">${a.role}</span></div>`).join('')}</div></div>`;}
 
-  // Synthèse des phases
-  if(fiche.synthese) {
-    html+=`<div class="fiche-card"><div class="fiche-block block-synthese">
-      <div class="fiche-block-title">⚡ Synthèse des phases</div>
-      <div class="synthese-text">${fiche.synthese}</div>
-    </div></div>`;
-  }
+  // Définitions
+  if(fiche.definitions&&fiche.definitions.length>0){html+=`<div class="fiche-card"><div class="fiche-block block-defs"><div class="fiche-block-title">📖 Définitions clés</div>${fiche.definitions.map(d=>`<div class="def-item"><div class="def-term">${d.terme}</div><div class="def-desc">${d.definition}</div></div>`).join('')}</div></div>`;}
 
-  // Exemples concrets
-  if(fiche.exemplesconcrets&&fiche.exemplesconcrets.length>0) {
-    html+=`<div class="fiche-card"><div class="fiche-block block-exemples">
-      <div class="fiche-block-title">🔍 Exemples concrets</div>
-      ${fiche.exemplesconcrets.map(e=>`<div class="exemple-item"><span class="exemple-dot">→</span>${e}</div>`).join('')}
-    </div></div>`;
-  }
+  // Formules
+  if(fiche.formules&&fiche.formules.length>0){html+=`<div class="fiche-card"><div class="fiche-block block-formules"><div class="fiche-block-title">📐 Formules & règles</div>${fiche.formules.map(f=>`<div class="formule-item">${f}</div>`).join('')}</div></div>`;}
+
+  // Mécanismes
+  if(fiche.mecanismes&&fiche.mecanismes.length>0){html+=`<div class="fiche-card"><div class="fiche-block block-mecanismes"><div class="fiche-block-title">⚙️ Mécanismes (comment ça marche)</div>${fiche.mecanismes.map(m=>`<div class="meca-item"><span class="meca-dot">▶</span>${m}</div>`).join('')}</div></div>`;}
 
   // Liens logiques
-  if(fiche.liensLogiques&&fiche.liensLogiques.length>0) {
-    html+=`<div class="fiche-card"><div class="fiche-block block-liens">
-      <div class="fiche-block-title">🔗 Liens logiques (cause → conséquence)</div>
-      ${fiche.liensLogiques.map(l=>`<div class="lien-item">↳ ${l}</div>`).join('')}
-    </div></div>`;
-  }
+  if(fiche.liensLogiques&&fiche.liensLogiques.length>0){html+=`<div class="fiche-card"><div class="fiche-block block-liens"><div class="fiche-block-title">🔗 Liens logiques</div>${fiche.liensLogiques.map(l=>`<div class="lien-item">↳ ${l}</div>`).join('')}</div></div>`;}
+
+  // Synthèse
+  if(fiche.synthese){html+=`<div class="fiche-card"><div class="fiche-block block-synthese"><div class="fiche-block-title">⚡ Synthèse des phases</div><div class="synthese-text">${fiche.synthese}</div></div></div>`;}
+
+  // Exemples concrets
+  if(fiche.exemplesconcrets&&fiche.exemplesconcrets.length>0){html+=`<div class="fiche-card"><div class="fiche-block block-exemples"><div class="fiche-block-title">🔍 Exemples concrets</div>${fiche.exemplesconcrets.map(e=>`<div class="exemple-item"><span class="exemple-dot">→</span>${e}</div>`).join('')}</div></div>`;}
 
   // Points essentiels
-  if(fiche.pointsEssentiels&&fiche.pointsEssentiels.length>0) {
-    html+=`<div class="fiche-card"><div class="fiche-block block-points">
-      <div class="fiche-block-title">⚡ Points essentiels</div>
-      ${fiche.pointsEssentiels.map(p=>`<div class="point-item"><div class="point-dot"></div>${p}</div>`).join('')}
-    </div></div>`;
-  }
+  if(fiche.pointsEssentiels&&fiche.pointsEssentiels.length>0){html+=`<div class="fiche-card"><div class="fiche-block block-points"><div class="fiche-block-title">⚡ Points essentiels</div>${fiche.pointsEssentiels.map(p=>`<div class="point-item"><div class="point-dot"></div>${p}</div>`).join('')}</div></div>`;}
+
+  // Flashcards
+  if(fiche.flashcards&&fiche.flashcards.length>0){html+=`<div class="fiche-card"><div class="fiche-block block-flashcards"><div class="fiche-block-title">🃏 Flashcards — clique pour révéler</div><div class="flashcards-grid">${fiche.flashcards.map(f=>`<div class="flashcard" onclick="toggleFlashcard(this)"><div class="flashcard-front"><span class="flashcard-q">${f.question}</span><span class="flashcard-toggle">▼ Voir</span></div><div class="flashcard-back">${f.reponse}</div></div>`).join('')}</div></div></div>`;}
 
   // Questions probables
-  if(fiche.questionsExamen&&fiche.questionsExamen.length>0) {
-    html+=`<div class="fiche-card"><div class="fiche-block block-questions">
-      <div class="fiche-block-title">🎯 Questions probables à l'examen</div>
-      ${fiche.questionsExamen.map(q=>`<div class="prob-question">${q}</div>`).join('')}
-    </div></div>`;
-  }
+  if(fiche.questionsExamen&&fiche.questionsExamen.length>0){html+=`<div class="fiche-card"><div class="fiche-block block-questions"><div class="fiche-block-title">🎯 Questions probables à l'examen</div>${fiche.questionsExamen.map(q=>`<div class="prob-question">${q}</div>`).join('')}</div></div>`;}
 
   // Bilan
-  if(fiche.bilan) {
-    html+=`<div class="fiche-card"><div class="fiche-block block-bilan">
-      <div class="fiche-block-title">🏆 Bilan à retenir</div>
-      <p class="bilan-text">${fiche.bilan}</p>
-    </div></div>`;
-  }
+  if(fiche.bilan){html+=`<div class="fiche-card"><div class="fiche-block block-bilan"><div class="fiche-block-title">🏆 Bilan à retenir</div><p class="bilan-text">${fiche.bilan}</p></div></div>`;}
 
   c.innerHTML=html;
 }
+
+function toggleFlashcard(el){el.classList.toggle('open');}
 
 // ── RESULTS TABS ──
 function showResultsTab(tab) {
